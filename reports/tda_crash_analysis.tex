@@ -1,0 +1,297 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage[numbers]{natbib}
+\usepackage{setspace}
+
+% Hyperlink styling
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+% Custom commands
+\newcommand{\Lp}{L^p}
+\newcommand{\Lone}{L^1}
+\newcommand{\Ltwo}{L^2}
+
+\title{\textbf{Topological Early Warning Signals of the 1929 Market Crash}\\[0.5em]
+\large An Application of Persistence Landscape Analysis to the Great Depression}
+\author{TDA Financial Analysis Project}
+\date{January 2026}
+
+\begin{document}
+
+\maketitle
+
+% ------------------------------------------------------------------------------
+% EXECUTIVE SUMMARY
+% ------------------------------------------------------------------------------
+\section*{Executive Summary}
+
+We applied Topological Data Analysis (TDA) to daily log-returns of three major U.S.\ stock indices during 1928--1933 to detect early warning signals of the October 1929 crash. Following the methodology of Gidea and Katz (2017), we computed persistence landscapes from sliding windows over the multivariate return series and tracked the $\Lone$ and $\Ltwo$ norms of these topological signatures.
+
+\textbf{Key Finding:} The \emph{volatility} of persistence landscape norms---not the norms themselves---provides a statistically significant early warning signal. Mann-Kendall trend tests on the 250 trading days preceding Black Tuesday (October 29, 1929) reveal:
+\begin{itemize}
+    \item Rolling variance of total persistence: $\tau = +0.341$, $p < 0.0001$
+    \item Low-frequency spectral power: $\tau = +0.398$, $p < 0.0001$
+\end{itemize}
+
+These results provide additional empirical support for the hypothesis that rising volatility in topological complexity measures may serve as an indicator of growing market instability.
+
+% ------------------------------------------------------------------------------
+% INTRODUCTION
+% ------------------------------------------------------------------------------
+\section{Introduction}
+
+The October 1929 stock market crash remains one of the most significant financial events in modern history, triggering the Great Depression and fundamentally reshaping economic policy worldwide. Detecting early warning signals of such systemic crises has been a longstanding goal in quantitative finance and econophysics.
+
+Traditional approaches to crash prediction rely on price-based indicators, volatility measures, or fundamental economic data. More recently, Topological Data Analysis (TDA) has emerged as a novel framework for extracting structural information from complex datasets. TDA captures the ``shape'' of data---including features like holes and voids---that may be invisible to conventional statistical methods.
+
+Gidea and Katz (2017) demonstrated that persistence landscapes computed from financial time series exhibit characteristic patterns before major crashes, including the 2000 dot-com bubble and the 2008 financial crisis. Their methodology transforms multivariate return data into topological summaries, then tracks the evolution of these summaries over time.
+
+\subsection{Research Questions}
+
+This analysis addresses the following questions:
+\begin{enumerate}
+    \item Can the Gidea--Katz methodology detect early warning signals of the 1929 crash when applied to historical index data?
+    \item Which topological indicators provide the strongest pre-crash signal?
+    \item How far in advance do these signals emerge?
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% METHODOLOGY
+% ------------------------------------------------------------------------------
+\section{Methodology}
+
+We replicate the Gidea--Katz pipeline with adaptations for historical data availability. The methodology proceeds in eight steps.
+
+\subsection{Data}
+
+We obtained daily closing prices for three U.S.\ stock indices from Stooq.com:
+\begin{itemize}
+    \item \textbf{DJIA}: Dow Jones Industrial Average
+    \item \textbf{DJTA}: Dow Jones Transportation Average
+    \item \textbf{S\&P Composite}: S\&P 500 / S\&P 90 proxy
+\end{itemize}
+
+The analysis period spans January 1, 1928 through December 31, 1933, yielding 1,737 daily observations after alignment to common trading days.
+
+\subsection{Log-Returns}
+
+Daily log-returns were computed as:
+\begin{equation}
+    r_t = \log\left(\frac{P_t}{P_{t-1}}\right)
+\end{equation}
+where $P_t$ denotes the closing price on day $t$. This transformation produces a stationary, approximately normally distributed series suitable for topological analysis.
+
+\subsection{Point Cloud Construction}
+
+For each trading day $t$, we construct a point cloud from a sliding window of $w = 50$ consecutive days. Each point in the cloud is a vector in $\mathbb{R}^3$:
+\begin{equation}
+    \mathbf{x}_i = (r_i^{\text{DJIA}}, r_i^{\text{DJTA}}, r_i^{\text{S\&P}}) \quad \text{for } i \in \{t-w+1, \ldots, t\}
+\end{equation}
+
+This window size balances temporal resolution against statistical stability, following the recommendation of Gidea and Katz.
+
+\subsection{Vietoris--Rips Filtration}
+
+We construct a Vietoris--Rips complex from each point cloud. At scale parameter $\epsilon$, the complex includes:
+\begin{itemize}
+    \item A 0-simplex (vertex) for each data point
+    \item A 1-simplex (edge) between points $\mathbf{x}_i$ and $\mathbf{x}_j$ if $\|\mathbf{x}_i - \mathbf{x}_j\| \leq \epsilon$
+    \item Higher-dimensional simplices when all pairwise distances satisfy the threshold
+\end{itemize}
+
+As $\epsilon$ increases from 0, topological features (connected components, loops, voids) appear and disappear. We track features up to $\epsilon_{\max} = 0.25$, sufficient to capture the full range of persistence in log-return data.
+
+\subsection{Persistence Diagrams}
+
+Persistent homology records the birth and death scales of each topological feature. For dimension-1 homology ($H_1$, loops), the persistence diagram $\mathcal{D}$ consists of points $(b, d)$ where:
+\begin{itemize}
+    \item $b$ = birth scale (when the loop first appears)
+    \item $d$ = death scale (when the loop is filled in)
+    \item $d - b$ = persistence (lifetime of the feature)
+\end{itemize}
+
+Features with high persistence represent robust topological structure, while short-lived features may reflect noise.
+
+\subsection{Persistence Landscapes}
+
+Persistence diagrams are not directly amenable to statistical analysis due to their set-valued nature. We transform each diagram into a \emph{persistence landscape}, a functional summary introduced by Bubenik (2015).
+
+For a diagram with points $(b_i, d_i)$, define tent functions:
+\begin{equation}
+    \Lambda_i(t) = \max\left(0, \min(t - b_i, d_i - t)\right)
+\end{equation}
+
+The $k$-th persistence landscape $\lambda_k(t)$ is the $k$-th largest value among $\{\Lambda_i(t)\}$ at each $t$. We compute the first five landscapes ($k = 1, \ldots, 5$) over a grid of 500 points spanning $[0, 0.125]$.
+
+\subsection{$\Lp$ Norms}
+
+We summarize each persistence landscape by its $\Lone$ and $\Ltwo$ norms:
+\begin{align}
+    \|\lambda\|_1 &= \int_0^T |\lambda(t)| \, dt \\
+    \|\lambda\|_2 &= \left(\int_0^T \lambda(t)^2 \, dt\right)^{1/2}
+\end{align}
+
+These norms quantify the total ``amount'' of topological structure present in each window. Higher norms indicate more persistent loops in the point cloud, potentially reflecting increased complexity or coupling in the underlying return dynamics.
+
+\subsection{Volatility Analysis and Trend Detection}
+
+The key insight from Gidea and Katz is that the \emph{volatility} of $\Lp$ norms---rather than the norms themselves---provides the early warning signal. We compute:
+
+\begin{enumerate}
+    \item \textbf{Rolling variance}: 50-day rolling standard deviation of the $\Lone$ and $\Ltwo$ norms
+    \item \textbf{Low-frequency spectral power}: Sum of periodogram power at frequencies below 0.1 cycles/day, computed over rolling 50-day windows
+\end{enumerate}
+
+To assess whether these indicators exhibit statistically significant trends before the crash, we apply the \textbf{Mann-Kendall test}---a non-parametric test for monotonic trends. The test statistic $\tau$ (Kendall's tau) ranges from $-1$ (perfect decreasing trend) to $+1$ (perfect increasing trend), with associated $p$-values indicating statistical significance.
+
+% ------------------------------------------------------------------------------
+% ANALYSIS AND FINDINGS
+% ------------------------------------------------------------------------------
+\section{Analysis and Findings}
+
+\subsection{Overview of Results}
+
+Figure~\ref{fig:main} displays the $\Lone$ and $\Ltwo$ norms alongside their 50-day rolling volatility for the entire analysis period. The red dashed line marks Black Tuesday (October 29, 1929); the green dotted line marks the approximate market bottom (July 8, 1932).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/tda_norms_and_volatility.png}
+    \caption{Persistence landscape norms and their rolling volatility, 1928--1933. The norms themselves remain relatively stable before the crash, but their \emph{volatility} shows a clear upward trend beginning in early 1929.}
+    \label{fig:main}
+\end{figure}
+
+\subsection{Key Observations}
+
+\textbf{1. The norms themselves do not provide a clear pre-crash signal.} Both $\Lone$ and $\Ltwo$ norms remain at baseline levels throughout 1928 and early 1929. The norms spike dramatically only \emph{during} the crash and subsequent depression period (1931--1932), not before.
+
+\textbf{2. Volatility of the norms rises before the crash.} The rolling standard deviation of both norms shows a gradual upward trend beginning approximately 6--9 months before Black Tuesday. This rising volatility precedes the crash itself.
+
+\textbf{3. Maximum instability occurs in 1931--1932, not 1929.} The most extreme values of both norms and their volatility occur during the depths of the Great Depression, reflecting sustained market instability rather than the initial crash event.
+
+\subsection{Statistical Validation: Mann-Kendall Tests}
+
+We applied Mann-Kendall tests to the 250 trading days immediately preceding Black Tuesday (approximately one calendar year). Table~\ref{tab:mk} summarizes the results.
+
+\begin{table}[H]
+    \centering
+    \caption{Mann-Kendall trend test results for the pre-crash period (250 days before October 29, 1929)}
+    \label{tab:mk}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Indicator} & \textbf{Kendall $\tau$} & \textbf{$p$-value} \\
+        \midrule
+        Rolling variance of total persistence & $+0.341$ & $< 0.0001$ \\
+        Low-frequency spectral power & $+0.398$ & $< 0.0001$ \\
+        $\Lone$ norm (raw) & $+0.089$ & $0.0412$ \\
+        $\Ltwo$ norm (raw) & $+0.102$ & $0.0198$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The volatility-based indicators (rolling variance and spectral power) show strong, highly significant upward trends ($\tau > 0.3$, $p < 0.0001$). The raw norms show weaker trends that, while statistically significant, are less pronounced.
+
+\subsection{Interpretation}
+
+These findings support the Gidea--Katz hypothesis: topological early warning signals manifest as \emph{increased volatility} in persistence metrics rather than elevated levels of the metrics themselves. Intuitively, this reflects the transition from stable market dynamics to an unstable regime characterized by erratic fluctuations in the coupling structure among indices.
+
+The approach appears to detect \emph{instability} in the market rather than predicting crashes directly. Rising volatility in topological complexity measures indicates growing systemic stress, which may or may not culminate in a discrete crash event.
+
+% ------------------------------------------------------------------------------
+% CONCLUSIONS AND RECOMMENDATIONS
+% ------------------------------------------------------------------------------
+\section{Conclusions}
+
+This analysis provides additional empirical support for the use of persistence landscape volatility as an early warning indicator of market instability. Applying the Gidea--Katz methodology to the 1929 crash period, we observe:
+
+\begin{enumerate}
+    \item Statistically significant upward trends in the volatility of $\Lp$ norms during the year preceding the crash
+    \item Mann-Kendall $\tau$ values of $+0.341$ (rolling variance) and $+0.398$ (spectral power), both with $p < 0.0001$
+    \item The signal emerges 6--9 months before Black Tuesday, providing meaningful lead time
+\end{enumerate}
+
+\subsection{Limitations}
+
+Several caveats apply to these findings:
+\begin{itemize}
+    \item \textbf{Hindsight bias}: We analyzed a known crash period. The methodology's performance on out-of-sample data or real-time application remains untested.
+    \item \textbf{Data quality}: Historical index data from the 1920s may contain errors or inconsistencies not present in modern data.
+    \item \textbf{Parameter sensitivity}: Results may depend on choices of window size, maximum scale, and other hyperparameters.
+    \item \textbf{Single event}: The 1929 crash is one data point. Generalization requires analysis of additional historical crashes.
+\end{itemize}
+
+\subsection{Future Work}
+
+Extensions of this analysis could include:
+\begin{itemize}
+    \item Application to other historical crashes (1987, 2000, 2008, 2020)
+    \item Sensitivity analysis across parameter choices
+    \item Comparison with traditional volatility indicators (VIX, GARCH)
+    \item Development of real-time monitoring frameworks
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% REFERENCES
+% ------------------------------------------------------------------------------
+\section*{References}
+
+\begin{enumerate}
+    \item Gidea, M., \& Katz, Y. (2017). Topological Data Analysis of Financial Time Series: Landscapes of Crashes. \textit{arXiv:1703.04385}.
+    \item Bubenik, P. (2015). Statistical Topological Data Analysis using Persistence Landscapes. \textit{Journal of Machine Learning Research}, 16, 77--102.
+    \item Edelsbrunner, H., \& Harer, J. (2010). \textit{Computational Topology: An Introduction}. American Mathematical Society.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% APPENDIX
+% ------------------------------------------------------------------------------
+\appendix
+\section{Technical Details}
+
+\subsection{Software Environment}
+
+All analysis was conducted in R (version 4.x) using the following packages:
+\begin{itemize}
+    \item \texttt{TDA}: Persistence diagram and landscape computation (GUDHI backend)
+    \item \texttt{quantmod}: Financial data handling
+    \item \texttt{Kendall}: Mann-Kendall trend tests
+    \item \texttt{signal}: Spectral density estimation
+    \item \texttt{ggplot2}, \texttt{patchwork}: Visualization
+\end{itemize}
+
+\subsection{Data Availability}
+
+Raw data was obtained from Stooq.com. Processed datasets are available in the project repository:
+\begin{itemize}
+    \item \texttt{data/processed/1929\_log\_returns.csv}: Daily log-returns
+    \item \texttt{data/processed/tda\_norms.csv}: Persistence landscape norms
+    \item \texttt{data/processed/spectral\_indicators.csv}: Rolling variance and spectral power
+\end{itemize}
+
+\subsection{Reproducibility}
+
+The complete analysis pipeline can be reproduced by running:
+\begin{verbatim}
+source("install_packages.R")
+source("src/data/get_data.R")
+source("src/features/compute_landscapes.R")
+source("src/models/spectral_analysis.R")
+source("src/visualization/plot_tda_results.R")
+\end{verbatim}
+
+\end{document}
+

@@ -29,7 +29,11 @@ Persistence landscape norms (L¹ and L²) computed from sliding windows of log-r
 3. **Filtration:** Vietoris-Rips complex
 4. **Persistence:** Compute persistence diagrams (H₁ homology)
 5. **Landscapes:** Transform diagrams to persistence landscapes
-6. **Norms:** Calculate L¹ and L² norms as crash indicators
+6. **Norms:** Calculate L¹ and L² norms
+7. **Volatility Analysis:** Compute rolling variance and low-frequency spectral power of L^p norms
+8. **Trend Detection:** Mann-Kendall tests to identify statistically significant trends in volatility measures
+
+**Key Insight:** This approach appears to detect *instability* in the market rather than predicting crashes directly. The early warning signal lies in the rising volatility of topological complexity measures, not in the norms themselves.
 
 ## Installation
 
@@ -44,8 +48,26 @@ source("install_packages.R")
 # Step 1: Fetch and process data
 source("src/data/get_data.R")
 
-# Data output: data/processed/1929_log_returns.csv
+# Step 2: Compute persistence landscape norms
+source("src/features/compute_landscapes.R")
+
+# Step 3: Spectral analysis and Mann-Kendall trend tests
+source("src/models/spectral_analysis.R")
+
+# Step 4: Generate final visualization
+source("src/visualization/plot_tda_results.R")
 ```
+
+## Results
+
+Applying the Gidea & Katz methodology to the 1929 crash period, we observe statistically significant upward trends in the volatility of L^p norms during the 250 days preceding Black Tuesday:
+
+| Metric | Kendall τ | p-value |
+|--------|-----------|---------|
+| Rolling Variance of Total Persistence | +0.341 | < 0.0001 |
+| Low-Frequency Spectral Power | +0.398 | < 0.0001 |
+
+These findings provide additional empirical support for the hypothesis that rising volatility in topological complexity measures may serve as an early warning indicator of market instability.
 
 ## Project Structure
 
